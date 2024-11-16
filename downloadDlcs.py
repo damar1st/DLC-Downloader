@@ -9,7 +9,7 @@ import os
 
 verbose = False        # display some debug messages
 lang = [ 'all', 'en' ] # en,fr,it,de,es,ko,zh,cn,pt,ru,tc,da,sv,no,nl,tr,th
-tier = [ 'all', '100', 'retina', 'iphone', 'ipad', 'ipad3' ] # 25,50,100,retina,iphone,ipad,ipad3
+tier = [ 'all', '25', '50', '100', 'retina', 'iphone', 'ipad', 'ipad3' ] # 25,50,100,retina,iphone,ipad,ipad3
 LOCAL_DLC_DIR = './dlcs-'+ lang[1]  + '/' # directory where DLC will be loaded
 URL_DLC_BASE  = 'http://oct2018-4-35-0-uam5h44a.tstodlc.eamobile.com/netstorage/gameasset/direct/simpsons/'
 
