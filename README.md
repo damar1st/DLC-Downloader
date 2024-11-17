@@ -2,7 +2,7 @@
 DLC Downloader for The Simpsons: Tapped Out. Thank you to [schdub](https://github.com/schdub/dlcsync) for (most) of the code. I decided to modify his, as i want to get this done before Jan. 24 when the game shuts down. 
 
 ## Usage
-You will need about 200GB of free storage, and [python3](https://www.python.org) installed.
+You will need about 350GB of free storage, and [python3](https://www.python.org) installed.
 ```
 python3 dlcDownloader.py
 ```
