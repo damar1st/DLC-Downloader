@@ -12,5 +12,5 @@ If you want to for example change the language of dlcs the script downloads, you
 ```
 verbose = False        # display some debug messages
 lang = [ 'all', 'en' ] # en,fr,it,de,es,ko,zh,cn,pt,ru,tc,da,sv,no,nl,tr,th
-tier = [ 'all', '100', 'retina', 'iphone', 'ipad', 'ipad3' ] # 25,50,100,retina,iphone,ipad,ipad3
+tier = [ 'all', '25', '50', '100', 'retina', 'iphone', 'ipad', 'ipad3' ] # 25,50,100,retina,iphone,ipad,ipad3
 ```
