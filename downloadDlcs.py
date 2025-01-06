@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 OUT_DIR = "./dlc"
-LANGUAGE = ["all", "en"]
+LANGUAGE = ["en", "fr", "it", "de", "es", "ko", "zh", "cn", "pt", "ru", "tc", "da", "sv", "no", "nl", "tr", "th"]
 TIER = ["all", "25", "50", "100", "retina", "iphone", "ipad", "ipad3", "mp3", "caf", "wav"]
 ALL_LANGUAGES = True
 ALL_TIERS = True
