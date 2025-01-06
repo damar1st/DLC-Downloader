@@ -1,16 +1,35 @@
 # DLC-Downloader
-DLC Downloader for The Simpsons: Tapped Out. Thank you to [schdub](https://github.com/schdub/dlcsync) for (most) of the code. I decided to modify his, as i want to get this done before Jan. 24 when the game shuts down. 
+DLC Downloader for The Simpsons: Tapped Out. It takes a while to download everything, so be patient.
 
 ## Usage
-You will need about 350GB of free storage, and [python3](https://www.python.org) installed.
+You will need about 30GB of free storage, and [python3](https://www.python.org) installed.
 ```
 python3 dlcDownloader.py
 ```
 
 ## Configuration
 If you want to for example change the language of dlcs the script downloads, you can do so at the top of the script.
-```
-verbose = False        # display some debug messages
-lang = [ 'all', 'en' ] # en,fr,it,de,es,ko,zh,cn,pt,ru,tc,da,sv,no,nl,tr,th
-tier = [ 'all', '25', '50', '100', 'retina', 'iphone', 'ipad', 'ipad3' ] # 25,50,100,retina,iphone,ipad,ipad3
+```python
+OUT_DIR = "./dlc"  # Directory where the dlc files will be downloaded
+LANGUAGE = [
+        "all", 
+        "en"
+]  # en,fr,it,de,es,ko,zh,cn,pt,ru,tc,da,sv,no,nl,tr,th
+
+TIER = [
+    "all",
+    "25",
+    "50",
+    "100",
+    "retina",
+    "iphone",
+    "ipad",
+    "ipad3",
+    "mp3",
+    "caf",
+    "wav",
+]  # 25,50,100,retina,iphone,ipad,ipad3,mp3,caf,wav
+
+ALL_LANGUAGES = True # Download the dlcs in every languages
+ALL_TIERS = True # Download the dlcs in every tier
 ```

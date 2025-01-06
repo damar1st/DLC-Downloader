@@ -1,163 +1,183 @@
-#!/usr/bin/python3
-
 import xml.etree.ElementTree as ET
-import binascii
-import urllib.request
-import zipfile
-import io
-import os
 
-verbose = False        # display some debug messages
-lang = [ 'all', 'en' ] # en,fr,it,de,es,ko,zh,cn,pt,ru,tc,da,sv,no,nl,tr,th
-tier = [ 'all', '25', '50', '100', 'retina', 'iphone', 'ipad', 'ipad3' ] # 25,50,100,retina,iphone,ipad,ipad3
-LOCAL_DLC_DIR = './dlcs-'+ lang[1]  + '/' # directory where DLC will be loaded
-URL_DLC_BASE  = 'http://oct2018-4-35-0-uam5h44a.tstodlc.eamobile.com/netstorage/gameasset/direct/simpsons/'
+from requests import get
 
-CURRENT_LINE = ''
+from colorama import Fore
 
-def LOG(msg):
-        if verbose: print(msg)
+from time import sleep
 
-def crc32ForFile(filename):
-        with open(filename,'rb') as f:
-                buf = (binascii.crc32(f.read()) & 0xFFFFFFFF)
-                return "%d" % buf
+import os, io, zipfile
 
-def getZippedXml(url):
-        r = urllib.request.urlopen(url)
-        data = r.read()
-        r.close()
-        LOG("downloaded %d bytes" % len(data))
+OUT_DIR = "./dlc"  # Directory where the dlc files will be downloaded
+LANGUAGE = [
+        "all", 
+        "en"
+]  # en,fr,it,de,es,ko,zh,cn,pt,ru,tc,da,sv,no,nl,tr,th
 
-        with open("./dlcs-" + lang[1] + "/" + CURRENT_LINE + "/DLCIndex.zip", "ab+") as file:
-            file.write(data)
-            file.close()
+TIER = [
+    "all",
+    "25",
+    "50",
+    "100",
+    "retina",
+    "iphone",
+    "ipad",
+    "ipad3",
+    "mp3",
+    "caf",
+    "wav",
+]  # 25,50,100,retina,iphone,ipad,ipad3,mp3,caf,wav
 
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-                data = z.read(z.infolist()[0])
-                LOG("unzipped %d bytes" % len(data))
-                return data
+ALL_LANGUAGES = True    # Download the dlcs in every languages
+ALL_TIERS = True        # Download the dlcs in every tier
 
-def getDlcIndex():
-        tree = ET.fromstring(getZippedXml(URL_DLC_BASE + 'dlc/DLCIndex.zip'))
-        lst = tree.findall('./IndexFile')
-        return lst[0].get('index').replace(':', '/')
+BASE_URL = "http://oct2018-4-35-0-uam5h44a.tstodlc.eamobile.com/netstorage/gameasset/direct/simpsons/"
 
-def getRest(dlFile, fromUrl):
-        existSize = 0
-        req = urllib.request.Request(fromUrl)
-        if os.path.exists(dlFile):
-                outputFile = open(dlFile, "ab")
-                existSize = os.path.getsize(dlFile)
-                # if the file exists, then download only the remainder
-                req.headers['Range'] = 'bytes=%s-' % (existSize)
-        else:
-                outputFile = open(dlFile,"wb")
-        webPage = urllib.request.urlopen(req)
-        if verbose:
-                for k, v in webPage.headers.items():
-                        LOG("%s=%s" % (k, v))
-        # if we already have the whole file, there is no need to download it again
-        ok = False
-        numBytes = 0
-        webSize = int(webPage.headers['Content-Length'])
-        if webSize == existSize:
-                LOG("File (%s) was already downloaded from URL (%s)" % (dlFile, fromUrl))
-                ok = True
-        else:
-                #LOG("Downloading %d more bytes" % (webSize-existSize))
-                while 1:
-                        data = webPage.read(8192)
-                        if not data: break
-                        outputFile.write(data)
-                        numBytes = numBytes + len(data)
-                ok = numBytes == webSize
-                LOG("downloaded %d bytes from %d" % (numBytes, webSize))
-        webPage.close()
-        outputFile.close()
-        return ok
+DOWNLOAD_QUEUE = []  # [ Url, Filename, Folder ]
+DOWNLOADED = []
 
-def doDownload(fn):
-        print('./dlcs-' + lang[1]  + '/' + CURRENT_LINE + '/' + fn)
 
-        tempFileName = fn.replace('/', '#')
-        bytesCount = getRest('./dlcs-' + lang[1]  + '/'+ CURRENT_LINE + '/'  + tempFileName, URL_DLC_BASE + fn)
+def log(severity: int, message: str):
+    if severity == 0:
+        print(Fore.BLUE + "[i] " + Fore.WHITE + message)
+    elif severity == 1:
+        print(Fore.YELLOW + "[!] " + Fore.WHITE + message)
+    elif severity == 2:
+        print(Fore.RED + "[!] " + Fore.WHITE + message)
+    else:
+        print(Fore.WHITE + message)
 
-class DlcIndexParser:
-        ignorePackage = True
-        # called for each opening tag.
-        def start(self, tag, attrib):
-                #LOG("tag='%s' attrib='%s'" % (tag, attrib))
-                if (tag == 'Package'):
-                        # initilize variables for each Package
-                        self.ignorePackage = False
-                        self.LocalDir = ''
-                        self.FileSize = ''
-                        self.UncompressedFileSize = ''
-                        self.IndexFileCRC = ''
-                        self.IndexFileSig = ''
-                        self.Version = ''
-                        self.FileName = ''
-                        self.Language = ''
 
-                        if attrib['ignore'] == 'true' or attrib['tier'] not in tier:
-                            self.ignorePackage = True
+def downloadFile(url: str, filename: str):
+    os.makedirs(OUT_DIR, exist_ok=True)
 
-                # ignore?
-                if (self.ignorePackage):
-                        return
-                # parse sub-tag for Package
-                if (tag == 'LocalDir'):
-                        self.LocalDir = attrib['name']
-                elif (tag == 'FileSize'):
-                        self.FileSize = attrib['val']
-                elif (tag == 'UncompressedFileSize'):
-                        self.UncompressedFileSize = attrib['val']
-                elif (tag == 'IndexFileCRC'):
-                        self.IndexFileCRC = attrib['val']
-                elif (tag == 'IndexFileSig'):
-                        self.IndexFileSig = attrib['val']
-                elif (tag == 'Version'):
-                        self.Version = attrib['val']
-                elif (tag == 'FileName'):
-                        self.FileName = attrib['val']
-                elif (tag == 'Language'):
-                        self.Language = attrib['val']
-        # called for each closing tag.
-        def end(self, tag):
-                if (tag == 'Package'):
-                        if (not self.ignorePackage and self.Language in lang):
-                                need2Download = True
-                                fn = self.FileName.replace(':', '/')
-                                zeroFile = LOCAL_DLC_DIR + fn[:-4] + '/0'
-                                # check crc32 of local 0 file
-                                if os.path.exists(zeroFile):
-                                        crc32 = crc32ForFile(zeroFile)
-                                        need2Download = crc32 != self.IndexFileCRC
-                                        if need2Download:
-                                                print("crc mismatch actual=%s expected=%s." % (crc32, self.IndexFileCRC))
-                                # now download it
-                                if need2Download:
-                                        doDownload(fn)
-                        self.ignorePackage = True
-        def data(self, data): pass
-        def close(self): pass
+    response = get(url)
+    if not response.status_code == 200:
+        log(1, f"Non 200 response ({response.status_code}). Skipping... ({url})")
+        return
 
-if __name__ == '__main__':
-    with open("dlcs.txt", "r") as dlcs:
+    data = response.content
+
+    log(0, f"Downloaded {filename} ({len(data)} bytes).")
+    with open(OUT_DIR + f"/{filename}", "wb+") as outFile:
+        outFile.write(data)
+
+    return data  # So it can be used by other functions, but still be saved to disk
+
+
+def getDLCIndexXml(url: str, filename: str):
+    zippedFileData = downloadFile(url, filename)
+    if not zippedFileData:
+        return
+
+    with zipfile.ZipFile(io.BytesIO(zippedFileData)) as z:
+        data = z.read(z.infolist()[0])
+        return data
+
+
+def getDLCIndexes():
+    log(0, "Getting DLC Indexes...")
+    try:
+        os.makedirs(OUT_DIR + "/dlc", exist_ok=True)
+        masterIndex = getDLCIndexXml(BASE_URL + "dlc/DLCIndex.zip", "dlc/DLCIndex.zip")
+        if not masterIndex:
+            return []
+
+        tree = ET.fromstring(masterIndex)
+        lst = tree.findall("./IndexFile")
+        return [item.get("index").replace(":", "/") for item in lst]
+
+    except ET.ParseError as e:
+        log(2, f"Failed to parse XML: {e}")
+        return []
+
+
+class DLCIndexParser(ET.XMLParser):
+    def start(self, tag, attrs):
+        if tag == "Package":
+            self.tier = attrs["tier"]
+
+            self.LocalDir = ""
+            self.FileSize = ""
+            self.UncompressedFileSize = ""
+            self.IndexFileCRC = ""
+            self.IndexFileSig = ""
+            self.Version = ""
+            self.FileName = ""
+            self.Language = ""
+
+        if tag == "LocalDir":
+            self.LocalDir = attrs["name"]
+        elif tag == "FileSize":
+            self.FileSize = attrs["val"]
+        elif tag == "UncompressedFileSize":
+            self.UncompressedFileSize = attrs["val"]
+        elif tag == "IndexFileCRC":
+            self.IndexFileCRC = attrs["val"]
+        elif tag == "IndexFileSig":
+            self.IndexFileSig = attrs["val"]
+        elif tag == "Version":
+            self.Version = attrs["val"]
+        elif tag == "FileName":
+            self.FileName = attrs["val"]
+        elif tag == "Language":
+            self.Language = attrs["val"]
+
+    def end(self, tag):
+        if tag == "Package":
+            return
+
+        if self.tier == "" or self.Language == "":
+            return
+
+        if self.Language not in LANGUAGE and not ALL_LANGUAGES:
+            return
+        if self.tier not in TIER and not ALL_TIERS:
+            return
+
+        DOWNLOAD_QUEUE.append(
+            [
+                BASE_URL + self.FileName.replace(":", "/"),
+                self.FileName.split(":")[-1],
+                self.FileName.split(":")[0],
+            ]
+        )  # So i can download them later
+
+    def data(self, data):
+        pass
+
+    def close(self):
+        pass
+
+
+if __name__ == "__main__":
+    indexes = getDLCIndexes()
+
+    # Process Data (Get Urls)
+    for index in indexes:
         try:
-            os.mkdir("./dlcs-" + lang[1])
-        except:
-            a = "" # Ignore
+            dlcIndexXml = getDLCIndexXml(BASE_URL + index, "dlc/" + index.split("/")[1])
+            if not dlcIndexXml:
+                continue
 
-        for line in dlcs:
-            CURRENT_LINE = line.strip()
-            os.mkdir("./dlcs-" + lang[1]  + "/" + line.strip())
-
-            URL_DLC_BASE = 'https://' + line.strip() + '/netstorage/gameasset/direct/simpsons/' 
-            LOCAL_DLC_DIR = os.path.expanduser(LOCAL_DLC_DIR)
-            if LOCAL_DLC_DIR[-1] != '/': LOCAL_DLC_DIR = LOCAL_DLC_DIR + '/' 
-            index = getDlcIndex()
-            parser = ET.XMLParser(target=DlcIndexParser())
-            parser.feed(getZippedXml(URL_DLC_BASE + index))
+            parser = ET.XMLParser(target=DLCIndexParser())
+            parser.feed(dlcIndexXml)
             parser.close()
+
+            log(0, f"Processed {index}")
+        except ET.ParseError as e:
+            log(2, f"Failed to parse XML for index {index}: {e}")
+
+    # Download Dlcs
+    for download in DOWNLOAD_QUEUE:
+        if download[0] in DOWNLOADED:
+            continue
+
+        os.makedirs(
+            OUT_DIR + "/" + download[2], exist_ok=True
+        )  # Make dlc subdirectory if it doesn't exist
+        downloadFile(download[0], download[2] + "/" + download[1])
+
+        DOWNLOADED.append(
+            download[0]
+        )  # So it doesn't download the same file multiple times
