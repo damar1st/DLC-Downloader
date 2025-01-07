@@ -13,7 +13,7 @@ ALL_LANGUAGES = True
 ALL_TIERS = True
 BASE_URL = "http://oct2018-4-35-0-uam5h44a.tstodlc.eamobile.com/netstorage/gameasset/direct/simpsons/"
 DOWNLOAD_QUEUE = []  # [Url, Dateiname, Ordner, CRC32]
-THREADS = 10  # Anzahl gleichzeitiger Threads
+THREADS = 10  #
 
 
 def log(severity: int, message: str):
